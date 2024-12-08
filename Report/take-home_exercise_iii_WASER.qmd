@@ -1,0 +1,63 @@
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org")) # set CRAN mirror
+```
+
+---
+title: "Take Home Exercise 3"
+subtitle: "Test a (causal) hypothesis with observational data (THE III)"
+author: "Nicolas Waser"
+date: "2024-12-12"
+format:
+  pdf:
+    toc: false
+    number-sections: true
+    number-depth: 3
+    colorlinks: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+*Disclaimer! For this exercise I made use of the following AI Generation tools: Deepl.com for translation purposes, the integrated Copilot tool in R Studio for generating code and text and the premium version of OpenAI's GPT-4o, as well as the free versions of Anthropics Claude 3.5 Sonnet and Mistral's Codestral AI model for generating code and assisting me in solving the tasks.*
+
+***Exercise 1:** Draw a DAG of the causal hypothesis You will use the CSES IMD data to test one of the most prominent theories in political science:the economic voting theory. This theory states that citizens decide their vote based on the state of the economy, so that they are more likely to support the incumbent (i.e., the outgoing governing party or candidate) if the economy works well and less likely is the economic situation is bad (for a review, see Lewis-Beck and Stegmaier, 2018). Focusing on citizens’ perceptions rather than objective economic indicators, the following (causal) hypothesis follows:*
+
+***Hypothesis:** Negative (positive) economic evaluations reduce (increase) the probability of voting for the incumbent.*
+
+*The CSES data contains one variable that we can use as our independent (“treatment”) variable, as it is operationalized as follows:*
+
+*• **IMD3013_1:** Would you say that over the past twelve months, the state of the economy in \[COUNTRY\] has gotten better, stayed about the same, or gotten worse?*
+
+*It also contains a variable that we can use to measure voting for the incumbent (i.e., our dependent variable):*
+
+*• **IMD3002_OUTGOV:** Whether or not the respondent cast a ballot for the outgoing incumbent.*
+
+*Since we want to approximate a causal test, we will need to control for some variables in order to rule out endogeneity concerns. However, we do not want to do this blindly but based on theoretical reasoning. As you will see in the codebook, there are many variables that we can use (and more that we can construct) to try to isolate the causal relationship between economic evaluations and voting for the incumbent, but we do not want to use them all. To guide our model specification, **please draw a DAG of the theoretical relationship at hand.** This will guide our next choices, so it is important that it is done carefully.*
+
+*You can draw a DAG in R using the packages dagitty and ggdag (see installation and loading below). Alternatively, you can draw it with any other program or by hand and upload it to the .qmd document as an image. Please comment your decisions.*
+
+*PS: Remember to simplify and do not include every variable you think it could be involved in the relationship, but only the most important. Also, group variables under broader concepts to avoid overfitting the DAG (e.g., ‘socio-economic conditions’ instead of ‘employment status’ and ‘income’).*
+
+```{r}
+library(tidyverse)
+install.packages("dagitty")
+library(dagitty)
+install.packages("ggdag")
+library(ggdag)
+```
+
+***Exercise 2:** Prepare your data*
+
+*Based on your DAG, declare what variables you will use for the analysis. Please inspect and transform them when necessary (e.g., recode missing values, inverse scales, etc.). Report your code and comment your decisions.*
+
+***Exercise 3:** Test your hypothesis with an ordinary-least squares (OLS) multiple regression model*
+
+*Run an OLS regression model to test your hypothesis. Use the function lm() for that, or you can use more complicated functions if preferred. Then comment on your choices and your results. Based on them, does the evidence support your hypothesis?*
+
+*Optional: you can plot the predicted probabilities of voting for the incumbent based on economic evaluations. This may be helpful for interpreting your results.*
+
+***Exercise 4 (additional):** Run an additional analysis of your choice*
+
+*This exercise is not mandatory, but it serves only to opt for the maximum grade (6).*
+
+*Is there any other statistical test you could run to further support or disprove the hypothesis?Please think on the observable implications of the theory that could be tested with the CSESIMD data and provide an additional test. It can be either another regression specification or a different statistical analysis. Finally, comment on your decisions and results, and discuss them together with the results of the previous exercise. You can be as creative as you want here; it is the final exercise, so enjoy yourself!*
