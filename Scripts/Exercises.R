@@ -111,6 +111,7 @@ g <- dagitty(dag_text)
 # Plot the DAG
 ggdag(g, layout = "auto") +
   theme_dag_grey() +
+  theme(legend.position = "right") +
   ggtitle("DAG of economic voting theory with controls")
 
 # Create a DAG object with full text
@@ -156,4 +157,27 @@ ggdag(g_full, layout = "auto") +
 
 # Prepare the data
 
+# control variables:
+# Employment Status, (EP): IMD2014 (0-10; 0-5 in Labor Force, 6-10 not in Labor Force, 11-12, 97-99 -> NA)
+# Problem: Half in Labor Force, half not in Labor Force, how to operationalize? Mark 1-5 as most to least employed?, 
+# Or: 0-3 = employed (1), 4-5 = unemployed (0), drop 6-10?
+
+# Partisan, (P): IMD3005_1 (0 = No, 1 = Yes, 7-9 -> NA)
+# Problem: Need new variable: Partisan = Yes & Incumbent = same Party
+# Need variable: Incumbent Party & respondent's party -> see paper notes
+
+# Political Information, (PI): IMD3015_A (0-3), IMD3015_B (0-3), IMD3015_C (0-3), IMD3015_D (0-4)
+# (0-3/0-4 number of correct answers, 9 -> NA)
+# Problem: How to operationalize? Sum or aggregate all 4 variables? Or pick one?
+
+# Satisfaction with Democracy, (S): IMD3010 (1-5, 6 = neutral, 6 -> 3, 7-9 -> NA)
+# Problem: 6 = neutral -> 3!
+
+# Independent Variable (E) (IMD3013_1) -> Economic Evaluation (1-3, 7-9 -> NA)
+# Dependent Variable (I) (IMD3002_OUTGOV) -> Vote for Incumbent (0,1, 999999_ -> NA)
+
+# New, unprepared df with the variables of interest
+df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3015_A", "IMD3015_B", "IMD3015_C", "IMD3015_D", "IMD3010")]
+# Rename the columns
+colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Pol_Info_A", "Pol_Info_B", "Pol_Info_C", "Pol_Info_D", "Sat_with_Dem")
 
