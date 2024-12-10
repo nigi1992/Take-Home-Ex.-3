@@ -113,6 +113,8 @@ ggdag(g, layout = "auto") +
   theme_dag_grey() +
   theme(legend.position = "right") +
   ggtitle("DAG of economic voting theory with controls")
+ggsave("Output/dag_simple.png")
+
 
 # Create a DAG object with full text
 dag_full_text <- "dag {
@@ -151,6 +153,7 @@ ggdag(g_full, layout = "auto") +
   ) +
   theme_dag_gray() +
   ggtitle("DAG of economic voting theory with controls")
+ggsave("Output/dag_labeled.png")
 
 
 # Exercise 2 --------------------------------------------------------------
@@ -164,7 +167,7 @@ ggdag(g_full, layout = "auto") +
 
 # Partisan, (P): IMD3005_1 (0 = No, 1 = Yes, 7-9 -> NA)
 # Problem: Need new variable: Partisan = Yes & Incumbent = same Party
-# Need variable: Incumbent Party & respondent's party -> see paper notes
+# Need additional variables to create this control variable: Incumbent Party & respondent's party -> see paper notes
 
 # Political Information, (PI): IMD3015_A (0-3), IMD3015_B (0-3), IMD3015_C (0-3), IMD3015_D (0-4)
 # (0-3/0-4 number of correct answers, 9 -> NA)
@@ -178,6 +181,153 @@ ggdag(g_full, layout = "auto") +
 
 # New, unprepared df with the variables of interest
 df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3015_A", "IMD3015_B", "IMD3015_C", "IMD3015_D", "IMD3010")]
+
 # Rename the columns
 colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Pol_Info_A", "Pol_Info_B", "Pol_Info_C", "Pol_Info_D", "Sat_with_Dem")
 
+
+# Missing Data ------------------------------------------------------------
+
+# Show missing values
+sapply(df, function(x) sum(is.na(x)))
+
+## Recode missing values
+df$Vote_For_Incu[df$Vote_For_Incu %in% 9999996:9999999] <- NA
+df$Eco_Eval[df$Eco_Eval %in% 7:9] <- NA
+
+df$Employment[df$Employment %in% c(11:12, 97:99)] <- NA
+df$Partisan[df$Partisan %in% c(7:9)] <- NA
+df$Pol_Info_A[df$Pol_Info_A %in% c(9)] <- NA
+df$Pol_Info_B[df$Pol_Info_B %in% c(9)] <- NA
+df$Pol_Info_C[df$Pol_Info_C %in% c(9)] <- NA
+df$Pol_Info_D[df$Pol_Info_D %in% c(9)] <- NA
+df$Sat_with_Dem[df$Sat_with_Dem %in% c(7:9)] <- NA
+
+# Show missing values
+sapply(df, function(x) sum(is.na(x)))
+
+
+# Recode Variables --------------------------------------------------------
+
+## Economic Evaluation
+# Show sum of each value
+table(df$Eco_Eval)
+# numeric or centered numeric????
+
+## Employment
+# Show sum of each value
+table(df$Employment)
+sum(20010 + 107815 + 18448 + 3727 + 1962 + 16300) # 168'262
+sum(14804 + 52760 + 25722 + 4726 + 5266)          # 103'278
+sum(168262 + 103278) # 271'540
+103278/271540*100 # 38%
+# don't drop 6-10, it's more than a third of the data!!!
+sum(20010 + 107815 + 18448 + 3727)
+sum(1962 + 16300 + 14804 + 52760 + 25722  + 4726  + 5266)
+#df$Employment <- ifelse(df$Employment %in% 0:3, 1, 0)
+
+# Binary classification: employed (including any hours worked) vs. unemployed
+df$Employment_bin <- NA
+df$Employment_bin[df$Employment %in% c(0,1,2,3,4)] <- 1 # employed
+df$Employment_bin[df$Employment == 5] <- 0 # unemployed
+#### Decide what to do with values 6-10: either NA or exclude from analysis
+df <- df[!df$Employment %in% c(6:10), ]
+
+# OR:
+# Three categories: employed, unemployed, not in labor force
+df$Employment_cat <- NA
+df$Employment_cat[df$Employment %in% c(0,1,2,3,4)] <- "Employed"
+df$Employment_cat[df$Employment == 5] <- "Unemployed"
+df$Employment_cat[df$Employment %in% c(6:10)] <- "Not_in_LF"
+df$Employment_cat <- factor(df$Employment_cat, levels=c("Employed","Unemployed","Not_in_LF"))
+
+# to make it a bit simpler I advise you to categorize into employed (0-3) and unemployed (4-10)!!
+
+
+## Politically Informed
+# Standardize political information scales to a 0–1 range
+df$PolInfo_Mod1_std <- df$IMD3015_A / 3  # Module 1
+df$PolInfo_Mod2_std <- df$IMD3015_B / 3  # Module 2
+df$PolInfo_Mod3_std <- df$IMD3015_C / 3  # Module 3
+df$PolInfo_Mod4_std <- df$IMD3015_D / 4  # Module 4
+
+# Aggregate the standardized scales
+df$PolInfo_Agg <- rowMeans(df[, c("PolInfo_Mod1_std", "PolInfo_Mod2_std", "PolInfo_Mod3_std", "PolInfo_Mod4_std")], na.rm = TRUE)
+
+# OR: 
+# Combine standardized scores into a single measure
+df$PolInfo_Combined <- rowMeans(df[, c("PolInfo_Mod1_std", "PolInfo_Mod2_std", "PolInfo_Mod3_std", "PolInfo_Mod4_std")], na.rm = TRUE)
+
+# Note:
+# Convert to an ordinal factor
+df$PolInfo_Mod1_ordinal <- factor(df$IMD3015_A, levels = 0:3, ordered = TRUE)
+
+# OR: neither -> I suggest summarize the variables you are inspecting!!! -> but too many NA's
+# So create a new variable that summarizes the number of correct answers from across the three modules
+# but what to do if NA in one?
+# Show number of value == 9
+table(df$Pol_Info_A)
+sum(4963 + 10273 + 11441 +  9120)
+table(df$Pol_Info_B)
+table(df$Pol_Info_C)
+table(df$Pol_Info_D)
+
+sum(df$Pol_Info_A == 9)
+sum(df$Pol_Info_B == 9)
+sum(df$Pol_Info_C == 9)
+sum(df$Pol_Info_D == 9)
+
+### Use binary variable instead!
+table(cses_imd$IMD3015_1)
+sum(34061 + 161507)
+table(cses_imd$IMD3015_2)
+table(cses_imd$IMD3015_3)
+table(cses_imd$IMD3015_4)
+
+df2 <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3015_1", "IMD3015_2", "IMD3015_3", "IMD3015_4", "IMD3010")]
+colnames(df2) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Pol_Info_1", "Pol_Info_2", "Pol_Info_3", "Pol_Info_4", "Sat_with_Dem")
+
+# NA's
+df2$Pol_Info_1[df2$Pol_Info_1 %in% c(7:9)] <- NA
+df2$Pol_Info_2[df2$Pol_Info_2 %in% c(7:9)] <- NA
+df2$Pol_Info_3[df2$Pol_Info_3 %in% c(7:9)] <- NA
+df2$Pol_Info_4[df2$Pol_Info_4 %in% c(7:9)] <- NA
+
+
+
+
+
+## Satisfaction with Democracy
+table(df$Sat_with_Dem)
+# Recode 'Neither satisfied nor dissatisfied' from 6 to 3
+df$Democracy_Satisfaction[df$Democracy_Satisfaction == 6] <- 3
+
+
+## Partisan
+table(df$Partisan)
+# Add new columns to data_frame
+df3 <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3005_3", INCUMBENT_PARTY_CODE, "IMD3015_A", "IMD3015_B", "IMD3015_C", "IMD3015_D", "IMD3010")]
+colnames(df3) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Resp_Party", "Incum_Party", "Pol_Info_A", "Pol_Info_B", "Pol_Info_C", "Pol_Info_D", "Sat_with_Dem")
+# Create the political predispositions control variable
+df3 <- df3 %>%
+  mutate(
+    political_predisposition = case_when(
+      # Respondent identifies with incumbent's party
+      Vote_For_Incu == 1 & IMD3005_3 == INCUMBENT_PARTY_CODE ~ "Incumbent",
+      
+      # Respondent identifies with a different party
+      Vote_For_Incu == 1 & IMD3005_3 != INCUMBENT_PARTY_CODE ~ "Opposition",
+      
+      # Respondent does not identify with any party
+      Vote_For_Incu == 0 ~ "Non-partisan",
+      
+      # If no data or missing
+      TRUE ~ NA_character_
+    )
+  )
+
+# Optional: Convert the variable to a factor
+cses_data$political_predisposition <- factor(
+  cses_data$political_predisposition, 
+  levels = c("Incumbent", "Opposition", "Non-partisan")
+)  
