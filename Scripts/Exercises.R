@@ -27,7 +27,7 @@ library(ggplot2)
 
 
 
-### Picking confounding variables
+### Picking control variables
 
 # Socio-Demographic Variables:
 # Age: Age: IMD2001_1 (age in years, continous, 015-115), IMD2001_2 (age in categories, 0-6)
@@ -45,12 +45,12 @@ library(ggplot2)
 # Employment Status: IMD2014 (0-10)
 # Employed more likely to be satisfied with economy and more likely to vote for the incumbent
 
-# Political Predispositions:
-# Party Identification: IMD3005_1 (0,1) "Do you feel close to any one party?", (IMD3005_2)
+# Political/Partisan Predispositions:
+# Party Identification/ Partisan: IMD3005_1 (0,1) "Do you feel close to any one party?", (IMD3005_2)
 # If yes, the more likely to vote for own party, regardless of incumbent/challenger status and economy?
 # Ideology: IMD3006 (left-right self-placement, 0-10) -> useful for Party id?
 
-# Political Information:
+# Political Information/Politically Informed:
 # IMD3015_1   >>>    POLITICAL INFORMATION: DICHOTOMIZED ITEM - 1ST
 # IMD3015_2   >>>    POLITICAL INFORMATION: DICHOTOMIZED ITEM - 2ND
 # IMD3015_3   >>>    POLITICAL INFORMATION: DICHOTOMIZED ITEM - 3RD
@@ -64,7 +64,7 @@ library(ggplot2)
 # 0-3, 0-4 number of correct answers
 # If more informed, the less likely, that the state of economy does matter for voting for incumbent
 
-# Satisfaction
+# Satisfaction with Democracy:
 # IMD3010     >>>    SATISFACTION WITH DEMOCRACY (1-6)
 # the more satisfied with dem., the less likely the state of eco. has an effect on voting for incumbent
 
@@ -83,11 +83,10 @@ library(ggplot2)
 
 # The DAG will be as follows:
 # IV (E) (IMD3013_1) -> DV (I) (IMD3002_OUTGOV)
-# IV -> Control Variables
 # Control Variables -> DV
 # Control Variables -> IV
 
-# Create a DAG object
+# Simple DAG 
 dag_text <- "dag {
   Eco [exposure,pos=\"-0.5,0\"]
   Incum [outcome,pos=\"0.5,0\"]
@@ -108,7 +107,6 @@ dag_text <- "dag {
 }"
 
 g <- dagitty(dag_text)
-# Plot the DAG
 ggdag(g, layout = "auto") +
   theme_dag_grey() +
   theme(legend.position = "right") +
@@ -116,7 +114,7 @@ ggdag(g, layout = "auto") +
 ggsave("Output/dag_simple.png")
 
 
-# Create a DAG object with full text
+# Labeled DAG
 dag_full_text <- "dag {
   EconomicEvaluation [exposure,pos=\"-0.5,0\"]
   VoteForIncumbent [outcome,pos=\"0.5,0\"]
@@ -135,13 +133,10 @@ dag_full_text <- "dag {
   PoliticallyInformed -> VoteForIncumbent
   SatisfiedWithDemocracy -> VoteForIncumbent
 }"
-
 g_full <- dagitty(dag_full_text)
-# Plot the DAG with big nodes
-ggdag(g_full)
+#ggdag(g_full)
 
-
-# Plot the DAG with labels
+# Ploting the DAG with labels
 ggdag(g_full, layout = "auto") +
   geom_dag_label(aes(label = name),
                  size = 5, 
@@ -160,7 +155,7 @@ ggsave("Output/dag_labeled.png")
 
 # Prepare the data
 
-# control variables:
+# Possible Control variables:
 # Employment Status, (EP): IMD2014 (0-10; 0-5 in Labor Force, 6-10 not in Labor Force, 11-12, 97-99 -> NA)
 # Problem: Half in Labor Force, half not in Labor Force, how to operationalize? Mark 1-5 as most to least employed?, 
 # Or: 0-3 = employed (1), 4-5 = unemployed (0), drop 6-10?
@@ -186,6 +181,69 @@ df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD30
 colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Pol_Info_A", "Pol_Info_B", "Pol_Info_C", "Pol_Info_D", "Sat_with_Dem")
 
 
+# Checking Data Structure -------------------------------------------------
+
+## Economic Evaluation
+table(df$Eco_Eval)
+# Show distribution in %
+prop.table(table(df$Eco_Eval))*100
+# 40% invalid answers, 60% valid answers -> remove Na's?
+is.factor(df$Eco_Eval)
+is.numeric(df$Eco_Eval) # is numeric -> turn to ordinal factor
+
+## Vote for Incumbent
+table(df$Vote_For_Incu)
+prop.table(table(df$Vote_For_Incu))*100
+# 30% invalid answers, 70% valid answers -> remove Na's?
+is.factor(df$Vote_For_Incu)
+is.numeric(df$Vote_For_Incu) # is numeric -> turn to binary dummy 
+
+## Employment
+table(df$Employment)
+prop.table(table(df$Employment))*100
+# 32% invalid answers, 68% valid answers -> impute Na's or remove?
+is.factor(df$Employment)
+is.numeric(df$Employment) # is numeric -> turn to binary dummy
+
+## Partisan
+table(df$Partisan)
+prop.table(table(df$Partisan))*100 # 94% valid answers, 6% invalid answers -> Imputation possible!
+is.numeric(df$Partisan) # is numeric -> turn to binary dummy
+
+## Political Information
+table(df$Pol_Info_A)
+prop.table(table(df$Pol_Info_A))*100 # 90% invalid -> remove!
+table(df$Pol_Info_B)
+prop.table(table(df$Pol_Info_B))*100 # 86% invalid -> remove!
+table(df$Pol_Info_C)
+prop.table(table(df$Pol_Info_C))*100 # 82% invalid -> remove!
+table(df$Pol_Info_D)
+prop.table(table(df$Pol_Info_D))*100 # 84% invalid -> remove!
+
+# Pick the other Pol. Info. variable
+df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3015_1", "IMD3015_2", "IMD3015_3", "IMD3015_4", "IMD3010")]
+colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Pol_Info_1", "Pol_Info_2", "Pol_Info_3", "Pol_Info_4", "Sat_with_Dem")
+table(df$Pol_Info_1)
+prop.table(table(df$Pol_Info_1))*100 # 50% invalid -> remove!
+table(df$Pol_Info_2)
+prop.table(table(df$Pol_Info_2))*100 # 54% invalid -> remove!
+table(df$Pol_Info_3)
+prop.table(table(df$Pol_Info_3))*100 # 56% invalid -> remove!
+table(df$Pol_Info_4)
+prop.table(table(df$Pol_Info_4))*100 # 90% invalid -> remove!
+# too many invalid answers, remove all Pol. Info. variables!!!
+
+
+### Redo data set with only the variables of interest
+df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3010")]
+colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Sat_with_Dem")
+
+
+## Satisfaction with Democracy
+table(df$Sat_with_Dem)
+prop.table(table(df$Sat_with_Dem))*100 # 6% invalid -> impute NA's!
+is.numeric(df$Sat_with_Dem) # is numeric -> turn to ordinal factor, 6 -> 3
+
 # Missing Data ------------------------------------------------------------
 
 # Show missing values
@@ -197,33 +255,41 @@ df$Eco_Eval[df$Eco_Eval %in% 7:9] <- NA
 
 df$Employment[df$Employment %in% c(11:12, 97:99)] <- NA
 df$Partisan[df$Partisan %in% c(7:9)] <- NA
-df$Pol_Info_A[df$Pol_Info_A %in% c(9)] <- NA
-df$Pol_Info_B[df$Pol_Info_B %in% c(9)] <- NA
-df$Pol_Info_C[df$Pol_Info_C %in% c(9)] <- NA
-df$Pol_Info_D[df$Pol_Info_D %in% c(9)] <- NA
 df$Sat_with_Dem[df$Sat_with_Dem %in% c(7:9)] <- NA
+
+# Save df
+write.csv(df, "Input Data/df_NA.csv")
 
 # Show missing values
 sapply(df, function(x) sum(is.na(x)))
+
+# Impute missing values or Remove????
+# IV: nearly 40% missing values, simply removing could lead to a substantial loss of data, which may compromise the statistical power and generalizability of results.
+# Imputing the missing values Since the variable is ordinal, consider imputation like predictive mean matching (for ordinal variables) 
+# DV: 30% missing values, simply removing could lead to a substantial loss of data, which may compromise the statistical power and generalizability of results.
+# However, Missingness in the dependent variable is more problematic because these rows cannot directly contribute to the regression analysis.
+# Therefore, it is better to remove the missing values in the dependent variable (listwise deletion)
+# CV:
+# 1. Employment: 32% missing values, simply removing could lead to a substantial loss of data, which may compromise the statistical power and generalizability of results.
+# But I already lost another CV due to overwhelming amount of Na's, so I will try anyway with multiple imputation
+# 2. Partisan & Satisfaction: both ca. 6% missing values, both imputation/Removal possible. I will attempt to impute in order to perserve sample size
 
 
 # Recode Variables --------------------------------------------------------
 
 ## Economic Evaluation
-# Show sum of each value
-table(df$Eco_Eval)
-# numeric or centered numeric????
+# numeric -> factor
+#  1 = Better, 3 = Same, 5 = Worse
+# Create an ordered factor
+df$econ_state_ord <- factor(df$econ_state,
+                            levels = c(5, 3, 1),   # order from worst to best
+                            labels = c("Worse","Same","Better"),
+                            ordered = TRUE)
+# check the structure
+str(df$econ_state_ord)
 
 ## Employment
-# Show sum of each value
-table(df$Employment)
-sum(20010 + 107815 + 18448 + 3727 + 1962 + 16300) # 168'262
-sum(14804 + 52760 + 25722 + 4726 + 5266)          # 103'278
-sum(168262 + 103278) # 271'540
-103278/271540*100 # 38%
 # don't drop 6-10, it's more than a third of the data!!!
-sum(20010 + 107815 + 18448 + 3727)
-sum(1962 + 16300 + 14804 + 52760 + 25722  + 4726  + 5266)
 #df$Employment <- ifelse(df$Employment %in% 0:3, 1, 0)
 
 # Binary classification: employed (including any hours worked) vs. unemployed
@@ -243,6 +309,17 @@ df$Employment_cat <- factor(df$Employment_cat, levels=c("Employed","Unemployed",
 
 # to make it a bit simpler I advise you to categorize into employed (0-3) and unemployed (4-10)!!
 
+
+## Satisfaction with Democracy
+table(df$Sat_with_Dem)
+# Recode 'Neither satisfied nor dissatisfied' from 6 to 3
+df$Democracy_Satisfaction[df$Democracy_Satisfaction == 6] <- 3
+
+
+## Partisan
+
+
+# Code Rest ---------------------------------------------------------------
 
 ## Politically Informed
 # Standardize political information scales to a 0–1 range
@@ -283,24 +360,6 @@ sum(34061 + 161507)
 table(cses_imd$IMD3015_2)
 table(cses_imd$IMD3015_3)
 table(cses_imd$IMD3015_4)
-
-df2 <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", "IMD3015_1", "IMD3015_2", "IMD3015_3", "IMD3015_4", "IMD3010")]
-colnames(df2) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", "Pol_Info_1", "Pol_Info_2", "Pol_Info_3", "Pol_Info_4", "Sat_with_Dem")
-
-# NA's
-df2$Pol_Info_1[df2$Pol_Info_1 %in% c(7:9)] <- NA
-df2$Pol_Info_2[df2$Pol_Info_2 %in% c(7:9)] <- NA
-df2$Pol_Info_3[df2$Pol_Info_3 %in% c(7:9)] <- NA
-df2$Pol_Info_4[df2$Pol_Info_4 %in% c(7:9)] <- NA
-
-
-
-
-
-## Satisfaction with Democracy
-table(df$Sat_with_Dem)
-# Recode 'Neither satisfied nor dissatisfied' from 6 to 3
-df$Democracy_Satisfaction[df$Democracy_Satisfaction == 6] <- 3
 
 
 ## Partisan
