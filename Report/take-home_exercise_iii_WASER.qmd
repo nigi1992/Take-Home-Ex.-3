@@ -73,12 +73,20 @@ and ‘income’).*
 
 ```{r}
 library(tidyverse)
-install.packages(c("dagitty", "ggdag"))
+install.packages(c("dagitty", "ggdag", 'lfe', 'ggpubr', 'mice', 'car', 'stargazer'))
 library(dagitty)
 library(ggdag)
 library(dplyr)
 library(ggplot2)
-cses_imd <- read_rds("/Users/nicolaswaser/New-project-GitHub-first/R/Take-Home-Ex.-3/Input Data/cses_imd.rdata")
+library(ggpubr)
+library(lfe)
+library(mice)
+library(car)
+library(stargazer)
+rm(list = ls())
+#cses_imd <- load('/Users/nicolaswaser/New-project-GitHub-first/R/Take-Home-Ex.-3/Input Data/cses_imd.rdata')
+library(readr)
+cses_imd <- read_csv("cses_imd.csv")
 ```
 
 Independent Variable (IV): IMD3013_1 -\> STATE OF ECONOMY (OVER PAST 12
@@ -172,8 +180,8 @@ dag_text <- "dag {
   Pol_I -> Incum
   Satis -> Incum}"
 g <- dagitty(dag_text)
-ggdag(g, layout = "auto") + theme_dag_grey() + theme(legend.position = "right") + ggtitle("DAG of economic voting theory with controls")
-#ggsave("Output/dag_simple.png")
+ggdag(g, layout = "auto") + theme_dag_grey() + theme(legend.position = "right") + 
+  ggtitle("DAG of economic voting theory with controls")
 ```
 
 ```{r}
@@ -200,7 +208,6 @@ ggdag(g_full, layout = "auto") + geom_dag_label(aes(label = name),
                  label.r = unit(0.15, "lines"), alpha = 0.7, 
                  fill = "lightblue", color = "black"   ) + 
   theme_dag_gray() + ggtitle("DAG of economic voting theory with controls")
-#ggsave("Output/dag_labeled.png")
 ```
 
 
@@ -286,7 +293,7 @@ In order to not further reduce the sample size, I will impute the missing values
 ```{r}
 #table(df$Pol_Info_A) ## Politically Informed
 prop.table(table(df$Pol_Info_A))*100 # 90% invalid -> remove!
-# table(df$Pol_Info_B) -------------------------------------------------------------
+# table(df$Pol_Info_B)
 #prop.table(table(df$Pol_Info_B))*100 # 86% invalid -> remove!
 #table(df$Pol_Info_C)
 #prop.table(table(df$Pol_Info_C))*100 # 82% invalid -> remove!
@@ -304,7 +311,7 @@ colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan",
                   "Sat_with_Dem")
 #table(df$Pol_Info_1)
 prop.table(table(df$Pol_Info_1))*100 # 50% invalid -> remove!
-# table(df$Pol_Info_2) -------------------------------------------------------------
+# table(df$Pol_Info_2)
 #prop.table(table(df$Pol_Info_2))*100 # 54% invalid -> remove!
 #table(df$Pol_Info_3)
 #prop.table(table(df$Pol_Info_3))*100 # 56% invalid -> remove!
@@ -362,8 +369,8 @@ df_complete <- complete(df_impute, 1) # Extract completed dataset (1st imputed)
 colSums(is.na(df_complete))
 ```
 ```{r}
-library(car)
-fit_temp <- lm(Vote_For_Incu ~ Eco_Eval + Employment + Partisan + Sat_with_Dem, data = df_complete)
+fit_temp <- lm(Vote_For_Incu ~ Eco_Eval + Employment + Partisan + Sat_with_Dem, 
+               data = df_complete)
 vif(fit_temp)
 ```
 All values are close to 1, indicating minimal or no multicollinearity among the predictors. The model is ready for interpretation.
@@ -384,9 +391,9 @@ interpreting your results.*
 # OLS multiple regression model
 Simple_model <- lm(Vote_For_Incu ~ Eco_Eval, data = df_complete)
 #summary(Simple_model) # Only one predictor
-OLS_model <- lm(Vote_For_Incu ~ Eco_Eval + Employment + Partisan + Sat_with_Dem, data = df_complete)
+OLS_model <- lm(Vote_For_Incu ~ Eco_Eval + Employment + Partisan + Sat_with_Dem, 
+                data = df_complete)
 #summary(OLS_model) # Multiple predictors
-library(stargazer)
 stargazer(Simple_model, OLS_model, type = "text")
 ```
 Important Note!!! I did not inverse the scale order of the IV and the CV 'Sat_with_Dem', so their relationship with the DV is negative, not positive. This is not a problem, but it is important to be aware of it when interpreting the results. If a higher value on the Eco_Eval variable represents a more negative economic evaluation, then a negative coefficient here actually aligns with the initial hypothesis that more positive economic evaluations would lead to greater likelihood of voting for the incumbent. In other words, better evaluations of the economy (lower Eco_Eval values) are related to higher support for the incumbent.
@@ -459,7 +466,6 @@ ggplot(predicted_probs) + # Creating the plot
   theme(plot.title = element_text(hjust = 0.5),
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "bottom")
-#ggsave("Output/predicted_probs_plot.png", width = 8, height = 6, dpi = 300)
 ```
 The visualization supports the regression results by clearly depicting the negative association between (negative!) economic evaluations and incumbent support. The downward-sloping lines indicate that as the economic evaluations become less favorable (higher values on the x-axis), the probability of voting for the incumbent decreases. This matches the regression coefficient for Eco_Eval in both models. The blue line represents the full model, which includes the additional predictors, while the green line represents the simple model with only the economic evaluation variable. The shaded areas around the lines represent the 95% confidence intervals for the predicted probabilities. They show that the model’s predictions are more precise for intermediate values of economic evaluation but slightly less certain at the extremes.
 

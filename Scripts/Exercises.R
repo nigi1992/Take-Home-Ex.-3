@@ -9,6 +9,8 @@ library(dagitty)
 install.packages("ggdag")
 library(ggdag)
 library(ggplot2)
+#save cses_imd as .csv
+write.csv(cses_imd, "Report/cses_imd.csv")
 
 # Exercise 1 ---------------------------------------------------------------
 # Draw a DAG of the causal hypothesis
