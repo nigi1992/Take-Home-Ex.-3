@@ -21,9 +21,8 @@ editor:
 *Disclaimer! For this exercise I made use of the following AI Generation
 tools: Deepl.com for translation purposes, the integrated Copilot tool
 in R Studio for generating code and text and the premium version of
-OpenAI's GPT-4o, as well as the free versions of Anthropics Claude 3.5
-Sonnet and Mistral's Codestral AI model for generating code and
-assisting me in solving the tasks.*
+OpenAI's GPT-4o and o1, as well as the free version of Anthropics Claude 3.5
+Sonnet for generating code and assisting me in solving the tasks.*
 
 ***Exercise 1:** Draw a DAG of the causal hypothesis You will use the
 CSES IMD data to test one of the most prominent theories in political
@@ -74,11 +73,136 @@ and ‘income’).*
 
 ```{r}
 library(tidyverse)
-install.packages("dagitty")
+install.packages(c("dagitty", "ggdag"))
 library(dagitty)
-install.packages("ggdag")
 library(ggdag)
+library(dplyr)
+library(ggplot2)
+cses_imd <- read_rds("/Users/nicolaswaser/New-project-GitHub-first/R/Take-Home-Ex.-3/Input Data/cses_imd.rdata")
 ```
+
+Independent Variable (IV): IMD3013_1 -\> STATE OF ECONOMY (OVER PAST 12
+MONTHS)
+
+"Would you say that over the past twelve months, the state of the
+economy in \[COUNTRY\] has gotten better, stayed about the same, or
+gotten worse?"
+
+Categorical: 1 = Better, 2 = Same, 3 = Worse, (7 = refused, 8 = don't
+know, 9 = missing)
+
+Dependent Variable (DV): IMD3002_OUTGOV -\> VOTE CHOICE: CURRENT MAIN
+ELECTION - VOTE FOR OUTGOING GOVERNMENT (INCUMBENT)
+
+Whether or not the respondent cast a ballot for the outgoing incumbent.
+
+Binary: 0 = Did not vote for incumbent, 1 = Voted for incumbent,
+(999999\_ for other answers)
+
+Selecting possible Control Variables: Socio-demographic Characteristics:
+Age, IMD2001_1 (age in years, continuous, 015-115), IMD2001_2 (age in
+categories, 0-6): The older, maybe more likely to vote for the incumbent
+and more likely to be satisfied with economy??? Gender, IMD2002 (0,1):
+Female maybe more likely to vote for the incumbent??? More satisfied
+with economy??? Urban or Rural Residence, IMD2007 (1-4): Urban residents
+more likely to be satisfied with economy? Education, IMD2003 (0-6): The
+better educated, the more likely to be satisfied with economy! Maybe
+more likely to vote for the incumbent? Household Income, IMD2006 (1-5):
+The richer, the more likely to be satisfied with economy! Maybe more
+likely to vote for the incumbent? Employment Status, IMD2014 (0-10):
+Employed more likely to be satisfied with economy and more likely to
+vote for the incumbent!
+
+Political/Partisan Predispositions: Party Identification/Partisan,
+IMD3005_1 (0,1), "Do you feel close to any one party?", (IMD3005_2): If
+yes, the more likely to vote for own party, regardless of
+incumbent/challenger status and economy? Ideology, IMD3006 (left-right
+self-placement, 0-10): Useful for Party id?
+
+Political Information/Politically Informed: IMD3015_1 -\> POLITICAL
+INFORMATION: DICHOTOMIZED ITEM - 1ST IMD3015_2 -\> POLITICAL
+INFORMATION: DICHOTOMIZED ITEM - 2ND IMD3015_3 -\> POLITICAL
+INFORMATION: DICHOTOMIZED ITEM - 3RD IMD3015_4 -\> POLITICAL
+INFORMATION: DICHOTOMIZED ITEM - 4TH 0 = Incorrect, 1 = Correct
+
+IMD3015_A -\> POLITICAL INFORMATION: SCALE - CSES MODULE 1 (0-3 SCALE)
+IMD3015_B -\> POLITICAL INFORMATION: SCALE - CSES MODULE 2 (0-3 SCALE)
+IMD3015_C -\> POLITICAL INFORMATION: SCALE - CSES MODULE 3 (0-3 SCALE)
+IMD3015_D -\> POLITICAL INFORMATION: SCALE - CSES MODULE 4 (0-4 SCALE)
+0-3, 0-4 number of correct answers If more informed, the less likely,
+that the state of economy does matter for voting for incumbent!
+
+Satisfaction with Democracy: IMD3010 -\> SATISFACTION WITH DEMOCRACY
+(1-6) The more satisfied with Dem., the less likely the state of Economy
+has an effect on voting for incumbent!
+
+IMD3011 -\> EFFICACY: WHO IS IN POWER CAN MAKE A DIFFERENCE (1-5) The
+more agreement, with this statement, the more likely the state of
+economy has an effect on voting for incumbent? IMD3012 -\> EFFICACY: WHO
+PEOPLE VOTE FOR MAKES A DIFFERENCE (1-5) The more agreement, with this
+statement, the more likely the state of economy has an effect on voting
+for incumbent?
+
+I pick the following Control Variables:
+Employment Status (Emp), IMD2014 (0-10): I strongly suspect that employed people are more likely to vote for the incumbent and more likely to be satisfied with the economy. Unemployed people, on the other hand, might be tempted to vote for the challenger, hoping for a change in the economy and an improvement in their personal situation. 
+Partisan (Parti), IMD3005_1 (0,1): If the respondent feels close to any party, they are more likely to vote for their party, regardless of the incumbent/challenger status and the state of the economy. Individuals with strong partisan or ideological leanings may tend to view economic conditions through a partisan lens, shaping both their perceptions of the economy and their vote choices. However, as will be shown later, I was unable to construct the variable in such a way that it would exactly represent my theory. Nevertheless, it is worth including it in the model even in its simplified form.
+Political Information (Pol_I), IMD3015_A (0-3), IMD3015_B (0-3), IMD3015_C (0-3), IMD3015_D (0-4): The more politically informed a respondent is, the less likely the state of the economy should have an effect on voting for the incumbent. People who are more informed may have more nuanced perceptions of the economy and be more aware of the incumbent’s responsibility for current conditions.
+Satisfaction with Democracy (Satis), IMD3010 (1-6): The more satisfied with democracy, the less likely the state of the economy should have an effect on voting for the incumbent.If someone is already dissatisfied with the incumbent’s handling of other policy areas or has low trust, they might be more inclined to interpret economic signals negatively and vote against the incumbent.
+
+The DAG will be as follows:
+IV (Eco) (IMD3013_1) -> DV (Incum) (IMD3002_OUTGOV)
+Control Variables -> DV
+Control Variables -> IV
+```{r}
+# Simple DAG 
+dag_text <- "dag {
+  Eco [exposure,pos=\"-0.5,0\"]
+  Incum [outcome,pos=\"0.5,0\"]
+  Emp [pos=\"-1,-1\"]
+  Parti [pos=\"-1,1\"]
+  Pol_I [pos=\"1,1\"]
+  Satis [pos=\"1,-1\"]
+  Eco -> Incum
+  Emp -> Eco
+  Parti -> Eco
+  Pol_I -> Eco
+  Satis -> Eco
+  Emp -> Incum
+  Parti -> Incum
+  Pol_I -> Incum
+  Satis -> Incum}"
+g <- dagitty(dag_text)
+ggdag(g, layout = "auto") + theme_dag_grey() + theme(legend.position = "right") + ggtitle("DAG of economic voting theory with controls")
+#ggsave("Output/dag_simple.png")
+```
+
+```{r}
+# Labeled DAG
+dag_full_text <- "dag {
+  EconomicEvaluation [exposure,pos=\"-0.5,0\"]
+  VoteForIncumbent [outcome,pos=\"0.5,0\"]
+  Employment [pos=\"-1,-1\"]
+  Partisan [pos=\"-1,1\"]
+  PoliticallyInformed [pos=\"1,1\"]
+  SatisfiedWithDemocracy [pos=\"1,-1\"]
+  EconomicEvaluation -> VoteForIncumbent
+  Employment -> EconomicEvaluation
+  Partisan -> EconomicEvaluation
+  PoliticallyInformed -> EconomicEvaluation
+  SatisfiedWithDemocracy -> EconomicEvaluation
+  Employment -> VoteForIncumbent
+  Partisan -> VoteForIncumbent
+  PoliticallyInformed -> VoteForIncumbent
+  SatisfiedWithDemocracy -> VoteForIncumbent}"
+g_full <- dagitty(dag_full_text)
+ggdag(g_full, layout = "auto") + geom_dag_label(aes(label = name), 
+                 size = 5, label.padding = unit(0.5,   "lines"), 
+                 label.r = unit(0.15, "lines"), alpha = 0.7, 
+                 fill = "lightblue", color = "black"   ) + 
+  theme_dag_gray() + ggtitle("DAG of economic voting theory with controls")
+#ggsave("Output/dag_labeled.png")
+```
+
 
 ***Exercise 2:** Prepare your data*
 
@@ -86,6 +210,164 @@ library(ggdag)
 analysis. Please inspect and transform them when necessary (e.g., recode
 missing values, inverse scales, etc.). Report your code and comment your
 decisions.*
+
+Operationalization of the variables:
+IV, (IMD3013_1): Economic Evaluation (1-3, 7-9 -> NA)
+DV, (IMD3002_OUTGOV): Vote for Incumbent (0,1, 999999_ -> NA)
+Control Variables:
+
+Employment, (IMD2014) (0-10; 0-5 in Labor Force, 6-10 not in Labor Force, 11-12, 97-99 -> NA)
+Problem: Half in Labor Force, half not in Labor Force, how to operationalize? Mark 1-5 as most to least employed?, Or: 0-3 = employed (1), 4-5 = unemployed (0), drop 6-10?
+
+Partisan, (IMD3005_1) (0 = No, 1 = Yes, 7-9 -> NA)
+Problem: Ideally I would create a new variable: ((Partisan = Yes) & (Incumbent = same Party)). But I would need additional information to create this control variable: The Incumbent Party & the respondent's party. This information is either not contained in the data set or it is, but in such a way, that it is unusable. From a theoretic point of view it would be the most promising control variable, as it makes intuitively sense, that being partisan would make you care less about the state of the economy and more about the party colors of the incumbent. If he is from your party, you are more likely to vote for him and vice versa, regardless of the state of the economy.
+```{r}
+# Partisan Control Variable Construction Example -----------------------------------
+#df3 <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1", 
+   #                 "IMD3005_3", INCUMBENT_PARTY_CODE, "IMD3015_A", "IMD3015_B",
+    #                "IMD3015_C", "IMD3015_D", "IMD3010")]
+#colnames(df3) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", 
+ #                  "Resp_Party", "Incum_Party", "Pol_Info_A", "Pol_Info_B", 
+   #                "Pol_Info_C", "Pol_Info_D", "Sat_with_Dem")
+#df3 <- df3 %>% mutate( # Creating partisan control variable
+ #   political_predisposition = case_when(
+      # Respondent identifies with incumbent's party
+  #    Vote_For_Incu == 1 & IMD3005_3 == INCUMBENT_PARTY_CODE ~ "Incumbent",
+      # Respondent identifies with a different party
+   #   Vote_For_Incu == 1 & IMD3005_3 != INCUMBENT_PARTY_CODE ~ "Opposition",
+      # Respondent does not identify with any party
+    #  Vote_For_Incu == 0 ~ "Non-partisan",
+      # If no data or missing
+     # TRUE ~ NA_character_))     # INCUMBENT_PARTY_CODE is a Placeholder
+```
+This approach is not feasible, but I will include the Partisan variable as a control variable nonetheless, as it is the best available proxy for the theoretical concept of being partisan and I suspect it will still have a significant effect on the final regression
+
+Political Information, IMD3015_A (0-3), IMD3015_B (0-3), IMD3015_C (0-3), IMD3015_D (0-4), (0-3/0-4 number of correct answers, 9 -> NA)
+Problem: How to operationalize? Sum or aggregate all 4 variables? Or pick one?
+
+Satisfaction with Democracy, IMD3010 (1-5, 6 = neutral, 6 -> 3, 7-9 -> NA)
+Problem: 6 = neutral -> Recode to 3!
+
+Checking Data Structure:
+```{r}
+df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1",
+                   "IMD3015_A", "IMD3015_B", "IMD3015_C", "IMD3015_D", 
+                   "IMD3010")] # New df with the variables of interest
+colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", 
+                  "Pol_Info_A", "Pol_Info_B", "Pol_Info_C", "Pol_Info_D", 
+                  "Sat_with_Dem") # renaming columns
+str(df) # Checking the structure of the new df
+```
+All values are numerical values, no factors, no characters, no NAs
+```{r}
+#table(df$Eco_Eval) ## Economic Evaluation
+prop.table(table(df$Eco_Eval))*100 # Show distribution in %
+```
+About 40% invalid answers -> mark as NA -> impute or remove?
+Simply removing could lead to a substantial loss of data, which may compromise the statistical power and generalizability of results. Imputation is possible, predictive mean matching (pmm) is probably best suited for this task.
+```{r}
+#table(df$Vote_For_Incu) ## Vote for Incumbent
+prop.table(table(df$Vote_For_Incu))*100 
+```
+About 30% invalid answers-> mark as NA -> impute or remove?
+Again simply removing could lead to a substantial loss of data and having missing values in the dependent variable is more problematic in a regression model, because these rows cannot directly contribute to the regression analysis. Therefore, it is better to remove the rows with missing values in the dependent variable altogether (listwise deletion). 
+Note: Having this many missing values in the dependent and independent variable is not at all ideal. In a different task setting, it might make sense to look around for alternatives.
+```{r}
+#table(df$Partisan) ## Partisan
+prop.table(table(df$Partisan))*100 
+```
+```{r}
+#table(df$Sat_with_Dem) ## Satisfaction with Democracy
+prop.table(table(df$Sat_with_Dem))*100 
+```
+Both about 6% invalid answers -> mark as NA -> Imputation possible!
+In order to not further reduce the sample size, I will impute the missing values, which in this case should be easily doable. Regular Median Imputation should suffice.
+'Sat_with_Dem' needs to be recoded, as 6 is a neutral answer ('neither safisfied or dissatisfied') and should be squarely in the middle of the scale from 1-5. Therefore it will be recoded to 3.
+```{r}
+#table(df$Pol_Info_A) ## Politically Informed
+prop.table(table(df$Pol_Info_A))*100 # 90% invalid -> remove!
+# table(df$Pol_Info_B) -------------------------------------------------------------
+#prop.table(table(df$Pol_Info_B))*100 # 86% invalid -> remove!
+#table(df$Pol_Info_C)
+#prop.table(table(df$Pol_Info_C))*100 # 82% invalid -> remove!
+#table(df$Pol_Info_D)
+#prop.table(table(df$Pol_Info_D))*100 # 84% invalid -> remove!
+```
+All politically informed variables have more than 80% invalid answers. There is no way to impute these values, removing this much from the sample is also not reasonable, so I will remove them from the dataset.
+Let's try the other politically informed variables that are binary, maybe this will lead to better results:
+```{r}
+df <- cses_imd[, c("IMD3013_1", "IMD3002_OUTGOV", "IMD2014", "IMD3005_1",
+                   "IMD3015_1", "IMD3015_2", "IMD3015_3", "IMD3015_4", 
+                   "IMD3010")]
+colnames(df) <- c("Eco_Eval", "Vote_For_Incu", "Employment", "Partisan", 
+                  "Pol_Info_1", "Pol_Info_2", "Pol_Info_3", "Pol_Info_4", 
+                  "Sat_with_Dem")
+#table(df$Pol_Info_1)
+prop.table(table(df$Pol_Info_1))*100 # 50% invalid -> remove!
+# table(df$Pol_Info_2) -------------------------------------------------------------
+#prop.table(table(df$Pol_Info_2))*100 # 54% invalid -> remove!
+#table(df$Pol_Info_3)
+#prop.table(table(df$Pol_Info_3))*100 # 56% invalid -> remove!
+#table(df$Pol_Info_4)
+#prop.table(table(df$Pol_Info_4))*100 # 90% invalid -> remove!
+```
+Still more than 50% invalid answers for all 4 subsets, so I have to cut this control variable altogether. It does not make sense including it.
+```{r}
+df<-cses_imd[, c("IMD3013_1","IMD3002_OUTGOV","IMD2014","IMD3005_1","IMD3010")]
+colnames(df)<-c("Eco_Eval","Vote_For_Incu","Employment","Partisan","Sat_with_Dem")
+```
+```{r}
+#table(df$Employment) ## Employment
+prop.table(table(df$Employment))*100 
+```
+About 30% invalid answers-> mark as NA -> impute or remove? Kill variable?
+With this many missing values, it would probably be best to remove the column from the df. But I already killed another control variable, so I will keep it here and attempt to impute the missing values with the 'pmm' method from the mice package.
+Another problem is the coding of the variable. The variable is coded in a way that makes it difficult to interpret the results. Answers 1-5 belong to the category 'In Labor Force', with 0-3 being 'employed' (but 0 unspecified), 4 is also confusing & 5 the only official 'unemployed' label and answers 6-10 belong to the category 'Not in Labor Force' and 11-12, 97-99 are invalid answers. To simply things, I recoded the variable to 'Employed' (0-3) and 'Unemployed' (4-10). Conceptually, this is not at all ideal, I'd rather focus on people in the Labor Force and distinguish between the 'employed' and the involuntarily 'unemployed'. But I already have too many missing NA's in this CV. I cannot just drop the whole population of people that are not in the Labor Force. Especially the 'retired' account for a substantial part of the population.
+```{r}
+# Missing values
+#sapply(df, function(x) sum(is.na(x))) # Show missing values
+df$Vote_For_Incu[df$Vote_For_Incu %in% 9999996:9999999] <- NA # recode as NA
+df$Eco_Eval[df$Eco_Eval %in% 7:9] <- NA
+df$Employment[df$Employment %in% c(11:12, 97:99)] <- NA
+df$Partisan[df$Partisan %in% c(7:9)] <- NA
+df$Sat_with_Dem[df$Sat_with_Dem %in% c(7:9)] <- NA
+sapply(df, function(x) sum(is.na(x)))
+```
+```{r}
+df_cleaned <- df %>% filter(!is.na(Vote_For_Incu)) # remove NA's in DV
+#str(df_cleaned)
+df_recode <- df_cleaned %>% mutate(
+        Employment = ifelse(Employment %in% 0:3, 1, 0),
+        Sat_with_Dem = ifelse(Sat_with_Dem == 6, 3, Sat_with_Dem))
+table(df_recode$Employment)
+```
+```{r}
+table(df_recode$Sat_with_Dem)
+```
+```{r}
+# Impute missing values for Partisan and Sat_with_Dem (few NA's)
+df_recode$Partisan[is.na(df_recode$Partisan)] <- 
+  median(df_recode$Partisan, na.rm = TRUE)  # Median imputation
+df_recode$Sat_with_Dem[is.na(df_recode$Sat_with_Dem)] <- 
+  median(df_recode$Sat_with_Dem, na.rm = TRUE) 
+# Impute missing values for Employment and Eco_Eval (many NA's) using pmm  
+df_impute <- mice(df_recode, method = c(
+  "pmm",        # Eco_Eval: Predictive Mean Matching
+  "",           # Vote_For_Incu: Already cleaned
+  "pmm",        # Employment
+  "",           # Partisan: Already imputed 
+  ""            # Sat_with_Dem
+), m = 5, seed = 123)
+df_complete <- complete(df_impute, 1) # Extract completed dataset (1st imputed)
+colSums(is.na(df_complete))
+```
+```{r}
+library(car)
+fit_temp <- lm(Vote_For_Incu ~ Eco_Eval + Employment + Partisan + Sat_with_Dem, data = df_complete)
+vif(fit_temp)
+```
+All values are close to 1, indicating minimal or no multicollinearity among the predictors. The model is ready for interpretation.
+
 
 ***Exercise 3:** Test your hypothesis with an ordinary-least squares
 (OLS) multiple regression model*
@@ -98,88 +380,88 @@ evidence support your hypothesis?*
 *Optional: you can plot the predicted probabilities of voting for the
 incumbent based on economic evaluations. This may be helpful for
 interpreting your results.*
+```{r}
+# OLS multiple regression model
+Simple_model <- lm(Vote_For_Incu ~ Eco_Eval, data = df_complete)
+#summary(Simple_model) # Only one predictor
+OLS_model <- lm(Vote_For_Incu ~ Eco_Eval + Employment + Partisan + Sat_with_Dem, data = df_complete)
+#summary(OLS_model) # Multiple predictors
+library(stargazer)
+stargazer(Simple_model, OLS_model, type = "text")
+```
+Important Note!!! I did not inverse the scale order of the IV and the CV 'Sat_with_Dem', so their relationship with the DV is negative, not positive. This is not a problem, but it is important to be aware of it when interpreting the results. If a higher value on the Eco_Eval variable represents a more negative economic evaluation, then a negative coefficient here actually aligns with the initial hypothesis that more positive economic evaluations would lead to greater likelihood of voting for the incumbent. In other words, better evaluations of the economy (lower Eco_Eval values) are related to higher support for the incumbent.
 
-#####AI
+Simple Model: The first model includes only the independent variable Eco_Eval. The coefficient for Eco_Eval is negative and highly significant (p<0.01). This indicates that more pessimistic views on the state of the economy are associated with lower predicted values of Vote_For_Incu.
 
-**Interpretation of the Linear Probability Model Results**
-
-In this model, the dependent variable (Vote_For_Incu) is likely a binary
-indicator of whether the individual voted for the incumbent. Because
-this is a linear probability model (LPM), the coefficients can be
+Full Model: In this model, the DV (Vote_For_Incu) is a binary indicator of whether the individual voted for the incumbent.
+***The coefficients can be
 interpreted as changes in the probability of voting for the incumbent
 associated with a one-unit change in the explanatory variables, holding
-other variables constant.
-
-	1.	**Eco_Eval (Economic Evaluation)** **Coefficient**: -0.0796
-
-This suggests that a one-unit increase in the respondent’s economic
-evaluation measure is associated with about a 7.96 percentage point
-decrease in the probability of voting for the incumbent, all else equal.
-
-The strong negative and highly statistically significant coefficient (p
-\< 0.001) indicates that as economic evaluation increases (depending on
-how it’s coded—if higher values mean a more negative or positive
-assessment of the economy, it’s crucial to be clear on the scaling), the
-likelihood of supporting the incumbent decreases.
-
-	2.	**Employment** **Coefficient**: -0.0023
-
-This coefficient is not statistically significant (p \> 0.05), meaning
-changes in the Employment variable do not reliably predict changes in
+other variables constant.***
+Economic Evaluation (-0.08): This suggests that a one-unit increase in the respondent’s economic evaluation measure (more negative sentiment) is associated with about a 8 percentage point decrease in the probability of voting for the incumbent. The strong negative and highly statistically significant coefficient (p< 0.001) indicates that as negative economic evaluations decrease, the likelihood of supporting the incumbent increases.
+      
+Employment (-0.0023): This coefficient is not statistically significant (p > 0.05), meaning changes in the Employment variable do not reliably predict changes in
 the probability of voting for the incumbent. Effectively, employment, as
 measured here, doesn’t have a clear linear relationship with incumbent
-support in this sample.
+support in this sample. However, it should be noted that the variable has some inherent flaws, such as the large amount of missing values and the conceptually flawed operationalization of employment status, especially as it relates to the decision of including people who are not part of the labor force. The hypotheses about unemployment (and with that maybe being pessimistic and resentful) having a negative effect on the personal evaluation of the incumbent's performance and the perceived state of the economy, does not really apply to the majority of people who are not part of the labor force for all sorts of reasons. It can be assumed that a lot of them are not involuntarily unemployed (or specifically: not in the labor force) and are therefore less likely to be disenchanted about their social and economic status. Thus, their status should as such not affect the IV and the DV as much.
 
-	3.	**Partisan (Partisanship)** **Coefficient**: 0.0225
+Partisan (0.0223): This indicates that a one-unit increase in the partisan measure is associated with a 2.23 percentage point increase in the probability of
+voting for the incumbent. The positive and statistically
+significant effect (p < 0.001) suggests that stronger partisanship
+(maybe favoring the incumbent’s party) boosts the likelihood of
+supporting that incumbent. As previously mentioned, conceptually, the variable is not ideal, as it does not exactly represent the theory of partisanship and how it connects to the perception of the incumbent's performance and the perceived state of the economy as it relates to the respondent's and the incumbent's party colors. However, I'm still glad I included it, as it turns out to be a good control variable for the model and even in its simpler form, there might be something to it from a theoretical standpoint.
 
-This indicates that a one-unit increase in the partisan measure is
-associated with a 2.25 percentage point increase in the probability of
-voting for the incumbent, all else equal. The positive and statistically
-significant effect (p \< 0.001) suggests that stronger partisanship
-(likely favoring the incumbent’s party) boosts the likelihood of
-supporting that incumbent.
+Sat_with_Dem (-0.044): A one-unit increase in Dis!-satisfaction with democracy is associated with a 4.4 percentage point decrease in the probability of voting for the
+incumbent. This effect is strongly statistically significant (p < 0.001). Again, one needs to keep in mind that the scale of this variable is inverted, so higher values indicate lower satisfaction with democracy. The negative coefficient suggests that higher satisfaction with democracy is associated with a greater likelihood of supporting the incumbent. This is in line with the expectation that dissatisfaction with the political system could lead to a lower evaluation of the incumbent's performance and the general state of the economy.
 
-	4.	**Sat_with_Dem (Satisfaction with Democracy)** **Coefficient**:
--0.0438
+Both models show highly significant F-Statistics, and the R-squared increases from about 82 to 94% with the inclusion of the additional predictors, indicating a modest improvement in explanatory power when controlling for employment status, partisanship, and satisfaction with democracy.
 
-A one-unit increase in satisfaction with democracy is associated with a
-4.38 percentage point decrease in the probability of voting for the
-incumbent, holding other factors constant. This effect is strongly
-statistically significant (p \< 0.001). If higher values mean greater
-satisfaction, this result might be counterintuitive and could suggest
-the need to double-check the direction of coding. For example, it might
-be that those who are more satisfied with how democracy is functioning
-do not feel a need to vote for the incumbent, or there’s some underlying
-coding or contextual factor at play. Re-examining how Sat_with_Dem was
-coded and interpreted is advisable.
+*Optional: you can plot the predicted probabilities of voting for the
+incumbent based on economic evaluations. This may be helpful for
+interpreting your results.*
 
-**Model Fit**: **R-squared**: About 0.0939
-
-This suggests that the model explains around 9.39% of the variation in
-the outcome. For an individual-level binary outcome, this may not be
-unusual, but it indicates that there are many other factors influencing
-the decision to vote for the incumbent not captured here.
-
-**F-statistic and p-value**:
-
-The model’s overall significance is very high (p \< 0.001), meaning that
-the model as a whole is statistically different from a model with no
-predictors. However, the relatively low R-squared shows limited
-explanatory power.
-
-**Conclusion**:
-
-Economic evaluation and satisfaction with democracy are strongly and
-negatively related to the probability of voting for the incumbent, which
-is somewhat surprising and should prompt a closer examination of
-variable coding and measurement.
-
-Partisanship has a clear positive effect: those aligned more strongly
-with the incumbent’s party are more likely to vote for that incumbent.
-
-Employment is not a significant predictor in this model.
-
-\#####
+```{r}
+# creating sequence of economic evaluation values
+eco_eval_seq <- seq(min(df_complete$Eco_Eval, na.rm = TRUE), 
+                    max(df_complete$Eco_Eval, na.rm = TRUE), 
+                    length.out = 100)
+predicted_probs <- data.frame( # calculating predicted prob for both models
+  Eco_Eval = eco_eval_seq,
+  # Full model (Model 2)
+  full_model = 0.762 + # intercept
+    (-0.080 * eco_eval_seq) + # Eco_Eval coefficient
+    (-0.002 * mean(df_complete$Employment)) + # Employment at mean
+    (0.023 * mean(df_complete$Partisan)) + # Partisan at mean
+    (-0.044 * mean(df_complete$Sat_with_Dem)), # Sat_with_Dem at mean
+  # Simple model (Model 1)
+  simple_model = 0.684 + # intercept
+    (-0.089 * eco_eval_seq)) # Eco_Eval coefficient
+ggplot(predicted_probs) + # Creating the plot
+  geom_line(aes(x = Eco_Eval, y = full_model, color = "Full Model"), size = 1) +
+  geom_ribbon(aes(x = Eco_Eval,   # full model
+                  ymin = full_model - 0.466/2,
+                  ymax = full_model + 0.466/2),
+              alpha = 0.1, fill = "blue") +
+  geom_line(aes(x = Eco_Eval, y = simple_model, color = "Simple Model"), size = 1) +
+  geom_ribbon(aes(x = Eco_Eval, # simple model
+                  ymin = simple_model - 0.470/2,
+                  ymax = simple_model + 0.470/2),
+              alpha = 0.1, fill = "green") +
+  scale_color_manual(values = c("Full Model" = "blue", "Simple Model" = "green")) +
+  labs(title = "Predicted Probability of Voting for Incumbent",
+       subtitle = "Comparison of Simple and Full Models",
+       x = "Economic Evaluation",
+       y = "Predicted Probability",
+       color = "Model",
+       caption = "Shaded areas represent 95% confidence intervals") +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "bottom")
+#ggsave("Output/predicted_probs_plot.png", width = 8, height = 6, dpi = 300)
+```
+The visualization supports the regression results by clearly depicting the negative association between (negative!) economic evaluations and incumbent support. The downward-sloping lines indicate that as the economic evaluations become less favorable (higher values on the x-axis), the probability of voting for the incumbent decreases. This matches the regression coefficient for Eco_Eval in both models. The blue line represents the full model, which includes the additional predictors, while the green line represents the simple model with only the economic evaluation variable. The shaded areas around the lines represent the 95% confidence intervals for the predicted probabilities. They show that the model’s predictions are more precise for intermediate values of economic evaluation but slightly less certain at the extremes.
 
 ***Exercise 4 (additional):** Run an additional analysis of your choice*
 

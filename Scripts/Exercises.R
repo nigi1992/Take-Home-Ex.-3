@@ -389,7 +389,7 @@ ggplot(predicted_probs) +
   theme(plot.title = element_text(hjust = 0.5),
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "bottom")
-
+ggsave("Output/predicted_probs_plot.png", width = 8, height = 6, dpi = 300)
 
 
 # Exercise 4 --------------------------------------------------------------
@@ -442,6 +442,8 @@ df$Eco_Eval <- factor(df$Eco_Eval,
 # check the structure
 str(df$econ_state_ord)
 
+
+
 ## Employment
 # don't drop 6-10, it's more than a third of the data!!!
 #df$Employment <- ifelse(df$Employment %in% 0:3, 1, 0)
@@ -462,15 +464,6 @@ df$Employment_cat[df$Employment %in% c(6:10)] <- "Not_in_LF"
 df$Employment_cat <- factor(df$Employment_cat, levels=c("Employed","Unemployed","Not_in_LF"))
 
 # to make it a bit simpler I advise you to categorize into employed (0-3) and unemployed (4-10)!!
-
-
-## Satisfaction with Democracy
-table(df$Sat_with_Dem)
-# Recode 'Neither satisfied nor dissatisfied' from 6 to 3
-df$Democracy_Satisfaction[df$Democracy_Satisfaction == 6] <- 3
-
-
-## Partisan
 
 
 
